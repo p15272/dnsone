@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Lookup</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+            text-align: center;
+            color: #222;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        .lead {
+            color: #555;
+            margin-bottom: 30px;
+        }
+
+        .box {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        input,
+        select,
+        button {
+            font: inherit;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 240px;
+        }
+
+        button {
+            cursor: pointer;
+            background: #f5f5f5;
+        }
+
+        button:hover {
+            background: #eaeaea;
+        }
+
+        .status {
+            margin-top: 20px;
+            font-weight: 600;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .record {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #fafafa;
+        }
+
+        .record strong {
+            display: inline-block;
+            min-width: 80px;
+        }
+
+        code {
+            background: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        pre {
+            overflow-x: auto;
+            background: #f6f6f6;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .small {
+            color: #666;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>DNS Lookup -harjoitus</h1>
+
+    <p class="lead">
+        Hae julkisia DNS-tietueita ja katso, mitä domain kertoo internetille.
+    </p>
+
+    <div class="box">
+        <h2>Hae DNS-tietue</h2>
+
+        <p class="small">
+            Esimerkkejä: <code>vehmassalo.fi</code>, <code>google.com</code>, <code>microsoft.com</code>
+        </p>
+
+        <div class="form-row">
+            <input id="domainInput" type="text" value="vehmassalo.fi" placeholder="Kirjoita domain">
+            
+            <select id="recordType">
+                <option value="A">A</option>
+                <option value="AAAA">AAAA</option>
+                <option value="CNAME">CNAME</option>
+                <option value="MX">MX</option>
+                <option value="TXT">TXT</option>
+                <option value="NS">NS</option>
+                <option value="CAA">CAA</option>
+            </select>
+
+            <button id="lookupButton">Hae</button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="explanation" class="small"></div>
+        <div id="results" class="results"></div>
+    </div>
+
+    <div class="box">
+        <h2>Mitä tietuetyypit tarkoittavat?</h2>
+
+        <p><strong>A</strong> = domain osoittaa IPv4-osoitteeseen.</p>
+        <p><strong>AAAA</strong> = domain osoittaa IPv6-osoitteeseen.</p>
+        <p><strong>CNAME</strong> = nimi on alias toiselle nimelle.</p>
+        <p><strong>MX</strong> = domainin sähköpostipalvelimet.</p>
+        <p><strong>TXT</strong> = tekstipohjaisia asetuksia, kuten SPF, DKIM, DMARC ja varmennukset.</p>
+        <p><strong>NS</strong> = domainin nimipalvelimet.</p>
+        <p><strong>CAA</strong> = mitkä varmentajat saavat myöntää SSL/TLS-varmenteita domainille.</p>
+    </div>
+
+    <div class="box">
+        <h2>Raaka DNS-vastaus</h2>
+        <pre id="rawJson">Ei hakua vielä.</pre>
+    </div>
+
+    <p id="time" class="small"></p>
+
+    <script>
+        const domainInput = document.getElementById("domainInput");
+        const recordType = document.getElementById("recordType");
+        const lookupButton = document.getElementById("lookupButton");
+        const statusElement = document.getElementById("status");
+        const explanationElement = document.getElementById("explanation");
+        const resultsElement = document.getElementById("results");
+        const rawJsonElement = document.getElementById("rawJson");
+
+        const typeExplanations = {
+            A: "A-tietue kertoo, mihin IPv4-osoitteeseen domain osoittaa.",
+            AAAA: "AAAA-tietue kertoo, mihin IPv6-osoitteeseen domain osoittaa.",
+            CNAME: "CNAME-tietue kertoo, että nimi on alias toiselle DNS-nimelle.",
+            MX: "MX-tietue kertoo, mitkä palvelimet vastaanottavat domainin sähköpostit.",
+            TXT: "TXT-tietue sisältää tekstimuotoisia asetuksia, kuten SPF-, DKIM- ja DMARC-tietoja.",
+            NS: "NS-tietue kertoo, mitkä nimipalvelimet vastaavat domainin DNS-tiedoista.",
+            CAA: "CAA-tietue kertoo, mitkä varmentajat saavat myöntää domainille SSL/TLS-varmenteita."
+        };
+
+        lookupButton.addEventListener("click", lookupDns);
+
+        domainInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                lookupDns();
+            }
+        });
+
+        async function lookupDns() {
+            const domain = domainInput.value.trim();
+            const type = recordType.value;
+
+            clearResults();
+
+            if (!domain) {
+                showError("Kirjoita domain ensin.");
+                return;
+            }
+
+            statusElement.textContent = "Haetaan DNS-tietoja...";
+            explanationElement.textContent = typeExplanations[type] || "";
+
+            try {
+                const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${encodeURIComponent(type)}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP-virhe: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                rawJsonElement.textContent = JSON.stringify(data, null, 2);
+
+                if (!data.Answer || data.Answer.length === 0) {
+                    statusElement.textContent = "Tietueita ei löytynyt.";
+                    resultsElement.innerHTML = `
+                        <div class="record">
+                            Domainilta <code>${escapeHtml(domain)}</code> ei löytynyt ${escapeHtml(type)}-tietueita.
+                        </div>
+                    `;
+                    return;
+                }
+
+                statusElement.textContent = `Löytyi ${data.Answer.length} tietue(tta).`;
+
+                resultsElement.innerHTML = data.Answer.map(answer => {
+                    return `
+                        <div class="record">
+                            <p><strong>Nimi:</strong> <code>${escapeHtml(answer.name)}</code></p>
+                            <p><strong>Tyyppi:</strong> ${dnsTypeToText(answer.type)}</p>
+                            <p><strong>TTL:</strong> ${escapeHtml(String(answer.TTL))} sekuntia</p>
+                            <p><strong>Arvo:</strong> <code>${escapeHtml(answer.data)}</code></p>
+                        </div>
+                    `;
+                }).join("");
+
+            } catch (error) {
+                showError("DNS-haussa tapahtui virhe: " + error.message);
+                rawJsonElement.textContent = "Virhe: " + error.message;
+            }
+        }
+
+        function clearResults() {
+            statusElement.textContent = "";
+            explanationElement.textContent = "";
+            resultsElement.innerHTML = "";
+            rawJsonElement.textContent = "Ei hakua vielä.";
+        }
+
+        function showError(message) {
+            statusElement.textContent = message;
+            resultsElement.innerHTML = "";
+        }
+
+        function dnsTypeToText(typeNumber) {
+            const types = {
+                1: "A",
+                2: "NS",
+                5: "CNAME",
+                15: "MX",
+                16: "TXT",
+                28: "AAAA",
+                257: "CAA"
+            };
+
+            return types[typeNumber] || `Tuntematon (${typeNumber})`;
+        }
+
+        function escapeHtml(value) {
+            return value
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        document.getElementById("time").textContent =
+            "Sivu ladattu: " + new Date().toLocaleString("fi-FI");
+    </script>
+</body>
+</html>
