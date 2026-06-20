@@ -315,6 +315,37 @@
         <pre id="rawJson" hidden>Ei hakua vielä.</pre>
     </div>
 
+    
+    <div class="box">
+        <h2>DMARC-rakentaja</h2>
+        <p class="small">Valitse asetukset ja kopioi valmis DMARC-tietue DNS:ään.</p>
+
+        <div class="form-row">
+            <select id="dmarcPolicy">
+                <option value="none">Vain seuranta (p=none)</option>
+                <option value="quarantine">Epäilyttävät viestit roskapostiin (p=quarantine)</option>
+                <option value="reject">Hylkää epäilyttävät viestit (p=reject)</option>
+            </select>
+
+            <select id="dmarcPct">
+                <option value="100">Käytä 100% viesteistä</option>
+                <option value="50">Käytä 50% viesteistä</option>
+                <option value="25">Käytä 25% viesteistä</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <input id="dmarcRua" type="text" placeholder="Raportointiosoite (esim. mailto:dmarc@yritys.fi)">
+        </div>
+
+        <div class="record">
+            <strong>Valmis tietue:</strong>
+            <pre id="dmarcOutput">v=DMARC1; p=none; pct=100</pre>
+            <button id="copyDmarcButton" type="button">Kopioi DMARC-tietue</button>
+        </div>
+    </div>
+
+
     <p id="time" class="small"></p>
 
     <script>
@@ -829,7 +860,35 @@
                     : "Piilota raaka DNS-vastaus ▲";
         });
 
-document.getElementById("time").textContent =
+
+        function updateDmarcBuilder() {
+            const policy = document.getElementById("dmarcPolicy").value;
+            const pct = document.getElementById("dmarcPct").value;
+            const rua = document.getElementById("dmarcRua").value.trim();
+
+            let record = `v=DMARC1; p=${policy}; pct=${pct}`;
+
+            if (rua) {
+                record += `; rua=${rua}`;
+            }
+
+            document.getElementById("dmarcOutput").textContent = record;
+        }
+
+        document.getElementById("dmarcPolicy").addEventListener("change", updateDmarcBuilder);
+        document.getElementById("dmarcPct").addEventListener("change", updateDmarcBuilder);
+        document.getElementById("dmarcRua").addEventListener("input", updateDmarcBuilder);
+
+        document.getElementById("copyDmarcButton").addEventListener("click", async () => {
+            await navigator.clipboard.writeText(
+                document.getElementById("dmarcOutput").textContent
+            );
+        });
+
+        updateDmarcBuilder();
+
+
+        document.getElementById("time").textContent =
             "Sivu ladattu: " + new Date().toLocaleString("fi-FI");
     </script>
 </body>
