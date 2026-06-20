@@ -17,9 +17,8 @@
             transition: background-color 0.2s, color 0.2s;
         }
 
-        h1 {
-            margin-bottom: 10px;
-        }
+        h1 { margin-bottom: 10px; }
+        h2, h3 { margin-top: 0; }
 
         .theme-toggle {
             position: fixed;
@@ -67,26 +66,16 @@
             background: #f5f5f5;
         }
 
-        button:hover {
-            background: #eaeaea;
-        }
+        button:hover { background: #eaeaea; }
 
         .status {
             margin-top: 20px;
             font-weight: 600;
         }
 
-        .results {
-            margin-top: 20px;
-        }
-
-        .result-section {
-            margin-top: 24px;
-        }
-
-        .result-section h3 {
-            margin-bottom: 10px;
-        }
+        .results { margin-top: 20px; }
+        .result-section { margin-top: 24px; }
+        .result-section h3 { margin-bottom: 10px; }
 
         .record {
             border: 1px solid #e0e0e0;
@@ -137,9 +126,7 @@
             white-space: pre-wrap;
         }
 
-        .cmd-command {
-            color: #fff;
-        }
+        .cmd-command { color: #fff; }
 
         .analysis-box {
             border: 1px solid #d5d5d5;
@@ -149,8 +136,24 @@
             background: #f7f7f7;
         }
 
-        .analysis-box h3 {
-            margin: 0 0 10px;
+        .analysis-box h3 { margin: 0 0 10px; }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            margin-top: 12px;
+        }
+
+        .analysis-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .analysis-card h4 {
+            margin: 0 0 8px;
         }
 
         .analysis-list {
@@ -158,8 +161,22 @@
             padding-left: 22px;
         }
 
-        .analysis-list li {
-            margin: 5px 0;
+        .analysis-list li { margin: 5px 0; }
+
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            border: 1px solid #d0d0d0;
+            border-radius: 999px;
+            padding: 4px 10px;
+            background: #fff;
+            font-size: 0.92rem;
         }
 
         .actions {
@@ -181,9 +198,7 @@
         }
 
         body.dark .lead,
-        body.dark .small {
-            color: #bcbcbc;
-        }
+        body.dark .small { color: #bcbcbc; }
 
         body.dark .box {
             border-color: #505050;
@@ -198,15 +213,20 @@
             background: #383838;
         }
 
-        body.dark button:hover {
-            background: #444;
-        }
+        body.dark button:hover { background: #444; }
 
         body.dark .record,
-        body.dark .analysis-box {
+        body.dark .analysis-box,
+        body.dark .analysis-card {
             color: #e5e5e5;
             border-color: #505050;
             background: #333;
+        }
+
+        body.dark .badge {
+            color: #e5e5e5;
+            border-color: #555;
+            background: #3a3a3a;
         }
 
         body.dark code {
@@ -226,19 +246,11 @@
             box-shadow: none;
         }
 
-        body.dark .copy-message {
-            color: #b8d7bc;
-        }
+        body.dark .copy-message { color: #b8d7bc; }
 
         @media (max-width: 640px) {
-            body {
-                margin-top: 70px;
-            }
-
-            .theme-toggle {
-                top: 12px;
-                right: 12px;
-            }
+            body { margin-top: 70px; }
+            .theme-toggle { top: 12px; right: 12px; }
         }
     </style>
 </head>
@@ -265,7 +277,7 @@
                 <option value="TXT">TXT</option>
                 <option value="NS">NS</option>
                 <option value="CAA">CAA</option>
-                <option value="ALL">ALL</option>
+                <option value="ALL">ALL / DNS-analyysi</option>
             </select>
 
             <button id="lookupButton">Hae</button>
@@ -277,8 +289,8 @@
 
         <div id="status" class="status"></div>
         <div id="explanation" class="small"></div>
-        <div id="results" class="results"></div>
         <div id="analysisResults"></div>
+        <div id="results" class="results"></div>
         <div id="copyActions" class="actions" hidden>
             <button id="copyButton" type="button">Kopioi tulokset</button>
             <span id="copyMessage" class="copy-message" role="status"></span>
@@ -295,12 +307,12 @@
         <p><strong>TXT</strong> = tekstipohjaisia asetuksia, kuten SPF, DKIM, DMARC ja varmennukset.</p>
         <p><strong>NS</strong> = domainin nimipalvelimet.</p>
         <p><strong>CAA</strong> = mitkä varmentajat saavat myöntää SSL/TLS-varmenteita domainille.</p>
-        <p><strong>ALL</strong> = hakee A-, AAAA-, MX-, TXT-, NS- ja CAA-tietueet samalla kertaa.</p>
+        <p><strong>ALL / DNS-analyysi</strong> = hakee yleisimmät tietueet, DMARC-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
     </div>
 
     <div class="box">
-        <h2>Raaka DNS-vastaus</h2>
-        <pre id="rawJson">Ei hakua vielä.</pre>
+        <h2><button id="toggleRawDns" type="button">Näytä raaka DNS-vastaus ▼</button></h2>
+        <pre id="rawJson" hidden>Ei hakua vielä.</pre>
     </div>
 
     <p id="time" class="small"></p>
@@ -330,7 +342,37 @@
             TXT: "TXT-tietue sisältää tekstimuotoisia asetuksia, kuten SPF-, DKIM- ja DMARC-tietoja.",
             NS: "NS-tietue kertoo, mitkä nimipalvelimet vastaavat domainin DNS-tiedoista.",
             CAA: "CAA-tietue kertoo, mitkä varmentajat saavat myöntää domainille SSL/TLS-varmenteita.",
-            ALL: "ALL hakee yleisimmät DNS-tietuetyypit ja kokoaa ne samalle sivulle."
+            ALL: "ALL hakee yleisimmät DNS-tietuetyypit, tarkistaa DMARCin ja muodostaa DNS-analyysin."
+        };
+
+        const mailProviders = [
+            { patterns: ["mail.protection.outlook.com", "outlook.com"], name: "Microsoft 365", text: "Käyttää Microsoft 365:tä" },
+            { patterns: ["aspmx.l.google.com", "googlemail.com", "smtp.google.com"], name: "Google Workspace", text: "Käyttää Google Workspacea" },
+            { patterns: ["zoho."], name: "Zoho", text: "Käyttää Zohoa" },
+            { patterns: ["protonmail.ch", "protonmail.com"], name: "Proton Mail", text: "Käyttää Proton Mailia" },
+            { patterns: ["messagingengine.com"], name: "Fastmail", text: "Käyttää Fastmailia" },
+            { patterns: ["hostingpalvelu.fi"], name: "Hostingpalvelu.fi", text: "Käyttää Hostingpalvelu.fi:tä" },
+            { patterns: ["amazonses.com", "inbound-smtp."], name: "Amazon SES", text: "Käyttää Amazon SES:ää" },
+            { patterns: ["pphosted.com", "ppe-hosted.com", "proofpoint.com"], name: "Proofpoint", text: "Käyttää Proofpointia" },
+            { patterns: ["mailgun.org"], name: "Mailgun", text: "Käyttää Mailgunia" },
+            { patterns: ["sendgrid.net"], name: "SendGrid", text: "Käyttää SendGridiä" },
+            { patterns: ["mailchimp.com", "mandrillapp.com"], name: "Mailchimp/Mandrill", text: "Käyttää Mailchimp/Mandrilliä" },
+            { patterns: ["mimecast.com"], name: "Mimecast", text: "Käyttää Mimecastia" },
+            { patterns: ["f-secure.com", "withsecure.com"], name: "WithSecure/F-Secure", text: "Käyttää WithSecure/F-Securea" }
+        ];
+
+        const spfIncludes = {
+            "spf.protection.outlook.com": "Microsoft 365",
+            "_spf.google.com": "Google Workspace",
+            "spf.zoho.com": "Zoho",
+            "_spf.protonmail.ch": "Proton Mail",
+            "spf.messagingengine.com": "Fastmail",
+            "amazonses.com": "Amazon SES",
+            "servers.mcsv.net": "Mailchimp",
+            "sendgrid.net": "SendGrid",
+            "mailgun.org": "Mailgun",
+            "spf.mandrillapp.com": "Mandrill",
+            "spf.mailjet.com": "Mailjet"
         };
 
         lookupButton.addEventListener("click", lookupDns);
@@ -340,13 +382,11 @@
         themeToggle.addEventListener("click", toggleTheme);
 
         domainInput.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-                lookupDns();
-            }
+            if (event.key === "Enter") lookupDns();
         });
 
         async function lookupDns() {
-            const domain = domainInput.value.trim();
+            const domain = domainInput.value.trim().toLowerCase();
             const type = recordType.value;
 
             clearResults();
@@ -367,12 +407,21 @@
                     responses[requestedType] = await fetchDns(domain, requestedType);
                 }
 
+                if (type === "ALL") {
+                    responses.DMARC = await fetchDns(`_dmarc.${domain}`, "TXT");
+                }
+
                 const recordsByType = Object.fromEntries(types.map(requestedType => [
                     requestedType,
                     responses[requestedType].Answer || []
                 ]));
+
+                if (type === "ALL") {
+                    recordsByType.DMARC = responses.DMARC.Answer || [];
+                }
+
                 const recordCount = Object.values(recordsByType).reduce((sum, records) => sum + records.length, 0);
-                const analysis = buildAnalysis(recordsByType);
+                const analysis = buildDnsAnalysis(domain, recordsByType, type === "ALL");
 
                 rawJsonElement.textContent = JSON.stringify(type === "ALL" ? responses : responses[type], null, 2);
 
@@ -386,16 +435,285 @@
                     return;
                 }
 
-                currentLookup = { domain, recordsByType, analysis };
+                currentLookup = { domain, recordsByType, analysis, type };
                 statusElement.textContent = `Löytyi ${recordCount} tietue(tta).`;
+                analysisResultsElement.innerHTML = renderDnsAnalysis(analysis);
                 resultsElement.innerHTML = renderResults(recordsByType, type === "ALL");
-                analysisResultsElement.innerHTML = renderAnalysis(analysis);
                 copyActionsElement.hidden = false;
-
             } catch (error) {
                 showError("DNS-haussa tapahtui virhe: " + error.message);
                 rawJsonElement.textContent = "Virhe: " + error.message;
             }
+        }
+
+        async function fetchDns(domain, type) {
+            const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${encodeURIComponent(type)}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP-virhe: ${response.status}`);
+            return response.json();
+        }
+
+        function buildDnsAnalysis(domain, recordsByType, isFullAnalysis) {
+            const normalizedRecords = normalizeRecords(recordsByType);
+            const mxService = detectMailService(normalizedRecords.MX || []);
+            const spfRecords = (normalizedRecords.TXT || []).filter(value => value.toLowerCase().startsWith("v=spf1"));
+            const dmarcRecords = (normalizedRecords.DMARC || []).filter(value => value.toLowerCase().startsWith("v=dmarc1"));
+            const spfAnalysis = analyzeSpfRecords(spfRecords);
+            const dmarcAnalysis = analyzeDmarcRecords(dmarcRecords);
+            const publicFindings = buildPublicFindings(normalizedRecords, mxService, spfAnalysis, dmarcAnalysis);
+            const healthChecks = buildHealthChecks(normalizedRecords, spfRecords, dmarcRecords, isFullAnalysis);
+            const badges = buildBadges(mxService, normalizedRecords, spfAnalysis, dmarcAnalysis);
+
+            return {
+                domain,
+                isFullAnalysis,
+                badges,
+                healthChecks,
+                mailService: mxService,
+                spfRecords,
+                spfAnalysis,
+                dmarcRecords,
+                dmarcAnalysis,
+                publicFindings
+            };
+        }
+
+        function normalizeRecords(recordsByType) {
+            const normalized = {};
+            for (const [type, records] of Object.entries(recordsByType)) {
+                normalized[type] = records.map(record => normalizeTxt(record.data));
+            }
+            return normalized;
+        }
+
+        function detectMailService(mxValues) {
+            if (!mxValues.length) {
+                return { name: null, text: "MX-tietueita ei löytynyt", found: false };
+            }
+
+            const provider = mailProviders.find(item =>
+                mxValues.some(hostname => item.patterns.some(pattern => hostname.toLowerCase().includes(pattern)))
+            );
+
+            return provider
+                ? { ...provider, found: true }
+                : { name: null, text: "Sähköpostipalvelua ei tunnistettu", found: false };
+        }
+
+        function analyzeSpfRecords(spfRecords) {
+            if (!spfRecords.length) {
+                return {
+                    status: "SPF-tietuetta ei löytynyt",
+                    mechanisms: [],
+                    services: [],
+                    ips: [],
+                    allPolicy: null
+                };
+            }
+
+            const mechanisms = [];
+            const services = [];
+            const ips = [];
+            let allPolicy = null;
+
+            for (const spfRecord of spfRecords) {
+                for (const part of spfRecord.split(/\s+/)) {
+                    const qualifier = part.match(/^[+?~-]/)?.[0] || "+";
+                    const normalized = part.replace(/^[+?~-]/, "");
+
+                    if (normalized.startsWith("include:")) {
+                        const host = normalized.slice(8).toLowerCase();
+                        const service = spfIncludes[host] || detectServiceFromHostname(host) || host;
+                        services.push(service);
+                        mechanisms.push(`Sallittu palvelu: ${service}`);
+                    } else if (normalized.startsWith("ip4:")) {
+                        const ip = normalized.slice(4);
+                        ips.push(ip);
+                        mechanisms.push(`Sallittu IPv4: ${ip}`);
+                    } else if (normalized.startsWith("ip6:")) {
+                        const ip = normalized.slice(4);
+                        ips.push(ip);
+                        mechanisms.push(`Sallittu IPv6: ${ip}`);
+                    } else if (normalized === "a") {
+                        mechanisms.push("Sallii domainin A/AAAA-tietueiden IP-osoitteet lähettäjiksi");
+                    } else if (normalized === "mx") {
+                        mechanisms.push("Sallii MX-palvelimien IP-osoitteet lähettäjiksi");
+                    } else if (normalized === "all") {
+                        allPolicy = describeSpfAllPolicy(qualifier);
+                    }
+                }
+            }
+
+            return {
+                status: spfRecords.length > 1 ? "Useita SPF-tietueita löytyi" : "SPF-tietue löytyi",
+                mechanisms: [...new Set(mechanisms)],
+                services: [...new Set(services)],
+                ips: [...new Set(ips)],
+                allPolicy
+            };
+        }
+
+        function describeSpfAllPolicy(qualifier) {
+            const policies = {
+                "+": "Pass (+all): kaikki lähettäjät sallitaan. Tätä ei yleensä haluta.",
+                "~": "SoftFail (~all): muut lähettäjät merkitään epäilyttäviksi.",
+                "-": "HardFail (-all): muut lähettäjät hylätään SPF:n perusteella.",
+                "?": "Neutral (?all): SPF ei ota kantaa muihin lähettäjiin."
+            };
+            return policies[qualifier] || policies["+"];
+        }
+
+        function analyzeDmarcRecords(dmarcRecords) {
+            if (!dmarcRecords.length) {
+                return {
+                    status: "DMARC-tietuetta ei löytynyt",
+                    policy: null,
+                    rua: null
+                };
+            }
+
+            const first = dmarcRecords[0];
+            const tags = Object.fromEntries(first.split(";").map(part => {
+                const [key, ...value] = part.trim().split("=");
+                return [key?.toLowerCase(), value.join("=")];
+            }).filter(([key, value]) => key && value));
+
+            const policyDescriptions = {
+                none: "p=none: vain seuranta, ei hylkäystä",
+                quarantine: "p=quarantine: epäonnistuneet viestit voidaan ohjata karanteeniin/roskapostiin",
+                reject: "p=reject: epäonnistuneet viestit voidaan hylätä"
+            };
+
+            return {
+                status: dmarcRecords.length > 1 ? "Useita DMARC-tietueita löytyi" : "DMARC-tietue löytyi",
+                policy: policyDescriptions[tags.p] || (tags.p ? `p=${tags.p}` : "DMARC-policyä ei tunnistettu"),
+                rua: tags.rua || null
+            };
+        }
+
+        function buildHealthChecks(records, spfRecords, dmarcRecords, isFullAnalysis) {
+            const checks = [];
+
+            checks.push(records.NS?.length ? "✓ Nimipalvelimet löytyvät" : "⚠ Nimipalvelimia ei löytynyt haussa");
+            checks.push((records.A?.length || records.AAAA?.length) ? "✓ Verkkosivulle löytyy A- tai AAAA-tietue" : "⚠ A/AAAA-tietueita ei löytynyt");
+            checks.push(records.MX?.length ? "✓ MX-tietueet löytyvät" : "ℹ MX-tietueita ei löytynyt");
+            checks.push(spfRecords.length === 1 ? "✓ SPF-tietue löytyi" : spfRecords.length > 1 ? "⚠ Useita SPF-tietueita" : "ℹ SPF-tietuetta ei löytynyt");
+            checks.push(dmarcRecords.length === 1 ? "✓ DMARC-tietue löytyi" : dmarcRecords.length > 1 ? "⚠ Useita DMARC-tietueita" : "ℹ DMARC-tietuetta ei löytynyt");
+            checks.push(records.CAA?.length ? "✓ CAA-tietue löytyi" : "ℹ CAA-tietuetta ei löytynyt");
+
+            if (isFullAnalysis) {
+                checks.push("ℹ DKIM-tietuetta ei voi tarkistaa yleisesti ilman selector-nimeä");
+            }
+
+            return checks;
+        }
+
+        function buildBadges(mxService, records, spfAnalysis, dmarcAnalysis) {
+            const badges = [];
+
+            if (mxService.found) badges.push(mxService.text);
+            if (records.NS?.some(value => value.toLowerCase().includes("cloudflare.com"))) badges.push("DNS Cloudflaressa");
+            if (records.A?.some(value => value === "23.227.38.65")) badges.push("Shopify-sivusto");
+            if (spfAnalysis.services.length) badges.push(`SPF sallii: ${spfAnalysis.services.join(", ")}`);
+            if (dmarcAnalysis.policy) badges.push(`DMARC: ${dmarcAnalysis.policy}`);
+
+            return [...new Set(badges)];
+        }
+
+        function buildPublicFindings(records, mxService, spfAnalysis, dmarcAnalysis) {
+            const findings = [];
+
+            if (records.NS?.some(value => value.toLowerCase().includes("cloudflare.com"))) {
+                findings.push("DNS Cloudflaressa");
+            }
+
+            if (records.A?.some(value => value === "23.227.38.65")) {
+                findings.push("Shopify-sivusto");
+            }
+
+            if (!dmarcAnalysis.policy && !dmarcAnalysis.rua) {
+                findings.push("DMARC puuttuu");
+            }
+
+            return findings;
+        }
+
+        function detectServiceFromHostname(hostname) {
+            const provider = [...mailProviders]
+                .sort((a, b) => b.patterns.join("").length - a.patterns.join("").length)
+                .find(item => item.patterns.some(pattern => hostname.includes(pattern)));
+            return provider?.name || null;
+        }
+
+        function renderDnsAnalysis(analysis) {
+            const checks = [];
+
+            checks.push(
+                analysis.mailService.found
+                    ? `✔ ${analysis.mailService.name}`
+                    : "✖ Sähköpostipalvelua ei tunnistettu"
+            );
+
+            checks.push(analysis.spfRecords.length ? "✔ SPF" : "✖ SPF");
+            checks.push(analysis.dmarcRecords.length ? "✔ DMARC" : "✖ DMARC");
+            checks.push("? DKIM");
+
+            const details = [];
+
+            if (analysis.spfAnalysis.services.length) {
+                details.push(`SPF sallii: ${analysis.spfAnalysis.services.join(", ")}`);
+            }
+
+            if (analysis.spfAnalysis.ips.length) {
+                details.push(`Sallitut IP:t: ${analysis.spfAnalysis.ips.join(", ")}`);
+            }
+
+            if (analysis.spfAnalysis.allPolicy) {
+                details.push(analysis.spfAnalysis.allPolicy);
+            }
+
+            details.push(...analysis.publicFindings);
+
+            return `
+                <section class="analysis-box">
+                    <h3>DNS-analyysi</h3>
+                    <ul class="analysis-list">
+                        ${checks.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
+                    </ul>
+                    ${details.length ? `
+                    <hr style="margin:16px 0;">
+                    <ul class="analysis-list">
+                        ${details.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
+                    </ul>` : ""}
+                </section>
+            `;
+        }
+
+        function renderResults(recordsByType, showSections) {
+            return Object.entries(recordsByType).map(([type, records]) => {
+                if (!showSections && records.length === 0) return "";
+
+                const content = records.length
+                    ? records.map(renderRecord).join("")
+                    : `<div class="record">Ei ${escapeHtml(type)}-tietueita.</div>`;
+
+                const title = type === "DMARC" ? "DMARC (_dmarc TXT)" : `${type}-tietueet`;
+
+                return showSections
+                    ? `<section class="result-section"><h3>${escapeHtml(title)}</h3>${content}</section>`
+                    : content;
+            }).join("");
+        }
+
+        function renderRecord(answer) {
+            return `
+                <div class="record">
+                    <p><strong>Nimi:</strong> <code>${escapeHtml(answer.name)}</code></p>
+                    <p><strong>Tyyppi:</strong> ${dnsTypeToText(answer.type)}</p>
+                    <p><strong>TTL:</strong> ${escapeHtml(String(answer.TTL))} sekuntia</p>
+                    <p><strong>Arvo:</strong> <code>${escapeHtml(answer.data)}</code></p>
+                </div>
+            `;
         }
 
         function clearResults() {
@@ -414,179 +732,8 @@
             resultsElement.innerHTML = "";
         }
 
-        async function fetchDns(domain, type) {
-            const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${encodeURIComponent(type)}`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP-virhe: ${response.status}`);
-            }
-
-            return response.json();
-        }
-
-        function renderResults(recordsByType, showSections) {
-            return Object.entries(recordsByType).map(([type, records]) => {
-                if (!showSections && records.length === 0) {
-                    return "";
-                }
-
-                const content = records.length
-                    ? records.map(renderRecord).join("")
-                    : `<div class="record">Ei ${escapeHtml(type)}-tietueita.</div>`;
-
-                return showSections
-                    ? `<section class="result-section"><h3>${escapeHtml(type)}-tietueet</h3>${content}</section>`
-                    : content;
-            }).join("");
-        }
-
-        function renderRecord(answer) {
-            return `
-                <div class="record">
-                    <p><strong>Nimi:</strong> <code>${escapeHtml(answer.name)}</code></p>
-                    <p><strong>Tyyppi:</strong> ${dnsTypeToText(answer.type)}</p>
-                    <p><strong>TTL:</strong> ${escapeHtml(String(answer.TTL))} sekuntia</p>
-                    <p><strong>Arvo:</strong> <code>${escapeHtml(answer.data)}</code></p>
-                </div>
-            `;
-        }
-
-        function buildAnalysis(recordsByType) {
-            const spfRecords = (recordsByType.TXT || [])
-                .map(record => normalizeTxt(record.data))
-                .filter(value => value.toLowerCase().startsWith("v=spf1"));
-            const spfFindings = spfRecords.flatMap(analyzeSpf);
-            const hasMxResults = Object.hasOwn(recordsByType, "MX");
-            const mailService = hasMxResults ? detectMailService(recordsByType.MX) : null;
-            const insights = buildExternalInsights(recordsByType, mailService, spfRecords);
-
-            return {
-                hasSpf: spfRecords.length > 0,
-                spfFindings: [...new Set(spfFindings)],
-                mailService,
-                insights
-            };
-        }
-
-        function analyzeSpf(spfRecord) {
-            const serviceNames = {
-                "spf.protection.outlook.com": "Microsoft 365",
-                "_spf.google.com": "Google Workspace",
-                "spf.zoho.com": "Zoho",
-                "_spf.protonmail.ch": "Proton Mail",
-                "spf.messagingengine.com": "Fastmail",
-                "amazonses.com": "Amazon SES"
-            };
-            const findings = [];
-
-            for (const part of spfRecord.split(/\s+/)) {
-                const normalized = part.replace(/^[+?~-]/, "");
-
-                if (normalized.startsWith("include:")) {
-                    const hostname = normalized.slice(8).toLowerCase();
-                    const service = serviceNames[hostname] || (
-                        hostname.includes("hostingpalvelu.fi") ? "Hostingpalvelu.fi" : hostname
-                    );
-                    findings.push(`✓ Sallittu palvelu: ${service}`);
-                } else if (normalized.startsWith("ip4:")) {
-                    findings.push(`✓ Sallittu IP: ${normalized.slice(4)}`);
-                } else if (normalized.startsWith("ip6:")) {
-                    findings.push(`✓ Sallittu IPv6: ${normalized.slice(4)}`);
-                } else if (part === "~all") {
-                    findings.push("⚠ SoftFail käytössä (~all)");
-                } else if (part === "-all") {
-                    findings.push("✓ HardFail käytössä (-all)");
-                }
-            }
-
-            return findings;
-        }
-
-        function detectMailService(mxRecords) {
-            const hostnames = mxRecords.map(record => record.data.toLowerCase());
-            const providers = [
-                { patterns: ["mail.protection.outlook.com"], text: "Käyttää Microsoft 365:tä", insight: "Käyttää Microsoft 365 -sähköpostia" },
-                { patterns: ["aspmx.l.google.com", "googlemail.com", "smtp.google.com"], text: "Käyttää Google Workspacea", insight: "Käyttää Google Workspacea" },
-                { patterns: ["zoho."], text: "Käyttää Zohoa", insight: "Käyttää Zoho-sähköpostia" },
-                { patterns: ["protonmail.ch"], text: "Käyttää Proton Mailia", insight: "Käyttää Proton Mailia" },
-                { patterns: ["messagingengine.com"], text: "Käyttää Fastmailia", insight: "Käyttää Fastmailia" },
-                { patterns: ["hostingpalvelu.fi"], text: "Käyttää Hostingpalvelu.fi:tä", insight: "Käyttää Hostingpalvelu.fi:n sähköpostia" },
-                { patterns: ["amazonses.com", "inbound-smtp."], text: "Käyttää Amazon SES:ää", insight: "Käyttää Amazon SES -sähköpostipalvelua" },
-                { patterns: ["pphosted.com", "ppe-hosted.com", "proofpoint.com"], text: "Käyttää Proofpointia", insight: "Käyttää Proofpoint-sähköpostipalvelua" }
-            ];
-
-            const provider = providers.find(item =>
-                hostnames.some(hostname => item.patterns.some(pattern => hostname.includes(pattern)))
-            );
-
-            return provider || {
-                text: "Sähköpostipalvelua ei tunnistettu",
-                insight: null
-            };
-        }
-
-        function buildExternalInsights(recordsByType, mailService, spfRecords) {
-            const insights = [];
-
-            if (mailService?.insight) {
-                insights.push(mailService.insight);
-            }
-
-            if ((recordsByType.A || []).some(record => record.data.includes("23.227.38.65"))) {
-                insights.push("Verkkosivu näyttää olevan Shopify-alustalla");
-            }
-
-            if ((recordsByType.NS || []).some(record => record.data.toLowerCase().includes("cloudflare.com"))) {
-                insights.push("DNS-hallinta näyttää olevan Cloudflaressa");
-            }
-
-            if (spfRecords.some(record => record.toLowerCase().includes("hostingpalvelu.fi"))) {
-                insights.push("Sähköpostia lähetetään Hostingpalvelu.fi:n kautta");
-            }
-
-            return [...new Set(insights)];
-        }
-
-        function renderAnalysis(analysis) {
-            const boxes = [];
-
-            if (analysis.hasSpf) {
-                boxes.push(renderAnalysisBox(
-                    "SPF-analyysi",
-                    analysis.spfFindings.length
-                        ? analysis.spfFindings
-                        : ["SPF-tietue löytyi, mutta siitä ei tunnistettu tarkempia sääntöjä"]
-                ));
-            }
-
-            if (analysis.mailService) {
-                boxes.push(renderAnalysisBox("Sähköpostipalvelu", [analysis.mailService.text]));
-            }
-
-            boxes.push(renderAnalysisBox(
-                "Mitä tämä kertoo ulkopuoliselle?",
-                analysis.insights.length ? analysis.insights : ["Ympäristöstä ei voitu tehdä päätelmiä"]
-            ));
-
-            return boxes.join("");
-        }
-
-        function renderAnalysisBox(title, items) {
-            return `
-                <section class="analysis-box">
-                    <h3>${escapeHtml(title)}</h3>
-                    <ul class="analysis-list">
-                        ${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
-                    </ul>
-                </section>
-            `;
-        }
-
         async function copyResults() {
-            if (!currentLookup) {
-                return;
-            }
+            if (!currentLookup) return;
 
             try {
                 await navigator.clipboard.writeText(formatLookupAsText(currentLookup));
@@ -597,7 +744,18 @@
         }
 
         function formatLookupAsText(lookup) {
-            const lines = [`DNS-tulokset: ${lookup.domain}`];
+            const lines = [`DNS-tulokset: ${lookup.domain}`, "", "DNS-analyysi"];
+            lines.push(...lookup.analysis.healthChecks);
+            lines.push("", "Sähköposti");
+            lines.push(lookup.analysis.mailService.text);
+            lines.push(lookup.analysis.spfAnalysis.status);
+            if (lookup.analysis.spfAnalysis.allPolicy) lines.push(lookup.analysis.spfAnalysis.allPolicy);
+            lines.push(...lookup.analysis.spfAnalysis.mechanisms);
+            lines.push(lookup.analysis.dmarcAnalysis.status);
+            if (lookup.analysis.dmarcAnalysis.policy) lines.push(lookup.analysis.dmarcAnalysis.policy);
+            if (lookup.analysis.dmarcAnalysis.rua) lines.push(`Raportointiosoite: ${lookup.analysis.dmarcAnalysis.rua}`);
+            lines.push("", "Mitä tämä kertoo ulkopuoliselle?");
+            lines.push(...lookup.analysis.publicFindings);
 
             for (const [type, records] of Object.entries(lookup.recordsByType)) {
                 lines.push("", `${type}-tietueet`);
@@ -605,28 +763,6 @@
                     ? records.map(record => `${record.name} | TTL ${record.TTL} | ${record.data}`)
                     : ["Ei tietueita."]));
             }
-
-            if (lookup.analysis.hasSpf) {
-                lines.push(
-                    "",
-                    "SPF-analyysi",
-                    ...(lookup.analysis.spfFindings.length
-                        ? lookup.analysis.spfFindings
-                        : ["SPF-tietue löytyi, mutta siitä ei tunnistettu tarkempia sääntöjä"])
-                );
-            }
-
-            if (lookup.analysis.mailService) {
-                lines.push("", "Sähköpostipalvelu", lookup.analysis.mailService.text);
-            }
-
-            lines.push(
-                "",
-                "Mitä tämä kertoo ulkopuoliselle?",
-                ...(lookup.analysis.insights.length
-                    ? lookup.analysis.insights
-                    : ["Ympäristöstä ei voitu tehdä päätelmiä"])
-            );
 
             return lines.join("\n");
         }
@@ -645,12 +781,11 @@
                 28: "AAAA",
                 257: "CAA"
             };
-
             return types[typeNumber] || `Tuntematon (${typeNumber})`;
         }
 
         function escapeHtml(value) {
-            return value
+            return String(value)
                 .replaceAll("&", "&amp;")
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")
@@ -660,9 +795,10 @@
 
         function updateCmdCommand() {
             const domain = domainInput.value.trim() || "<domain>";
-            const types = recordType.value === "ALL" ? allRecordTypes : [recordType.value];
+            const types = recordType.value === "ALL" ? [...allRecordTypes, "TXT _dmarc"] : [recordType.value];
             cmdCommandElement.textContent = types.map((type, index) => {
                 const prompt = index === 0 ? "" : "\nC:\\Users\\Student>";
+                if (type === "TXT _dmarc") return `${prompt}nslookup -type=TXT _dmarc.${domain}`;
                 return `${prompt}nslookup -type=${type} ${domain}`;
             }).join("");
         }
@@ -681,7 +817,19 @@
         applyTheme(localStorage.getItem("dns-theme") || "light");
         updateCmdCommand();
 
-        document.getElementById("time").textContent =
+        
+        const toggleRawDnsButton = document.getElementById("toggleRawDns");
+
+        toggleRawDnsButton.addEventListener("click", () => {
+            rawJsonElement.hidden = !rawJsonElement.hidden;
+
+            toggleRawDnsButton.textContent =
+                rawJsonElement.hidden
+                    ? "Näytä raaka DNS-vastaus ▼"
+                    : "Piilota raaka DNS-vastaus ▲";
+        });
+
+document.getElementById("time").textContent =
             "Sivu ladattu: " + new Date().toLocaleString("fi-FI");
     </script>
 </body>
