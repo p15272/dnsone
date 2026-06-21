@@ -277,14 +277,14 @@
                 <option value="TXT">TXT</option>
                 <option value="NS">NS</option>
                 <option value="CAA">CAA</option>
-                <option value="ALL">ALL / DNS-analyysi</option>
+                <option value="ALL">ALL</option>
             </select>
 
             <button id="lookupButton">Hae</button>
         </div>
 
         <div class="cmd-window" aria-label="Windows Command Prompt -komentoesimerkki">
-            <div class="cmd-body">C:\Users\Student&gt;<span id="cmdCommand" class="cmd-command"></span></div>
+            <div class="cmd-body">C:\Users\DNS&gt;<span id="cmdCommand" class="cmd-command"></span></div>
         </div>
 
         <div id="status" class="status"></div>
@@ -307,7 +307,7 @@
         <p><strong>TXT</strong> = tekstipohjaisia asetuksia, kuten SPF, DKIM, DMARC ja varmennukset.</p>
         <p><strong>NS</strong> = domainin nimipalvelimet.</p>
         <p><strong>CAA</strong> = mitkä varmentajat saavat myöntää SSL/TLS-varmenteita domainille.</p>
-        <p><strong>ALL / DNS-analyysi</strong> = hakee yleisimmät tietueet, DMARC-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
+        <p><strong>ALL</strong> = hakee yleisimmät tietueet, DMARC-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
     </div>
 
     <div class="box">
@@ -828,7 +828,7 @@
             const domain = domainInput.value.trim() || "<domain>";
             const types = recordType.value === "ALL" ? [...allRecordTypes, "TXT _dmarc"] : [recordType.value];
             cmdCommandElement.textContent = types.map((type, index) => {
-                const prompt = index === 0 ? "" : "\nC:\\Users\\Student>";
+                const prompt = index === 0 ? "" : "\nC:\\Users\\DNS>";
                 if (type === "TXT _dmarc") return `${prompt}nslookup -type=TXT _dmarc.${domain}`;
                 return `${prompt}nslookup -type=${type} ${domain}`;
             }).join("");
