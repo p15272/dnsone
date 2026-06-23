@@ -94,6 +94,9 @@
             background: #f1f1f1;
             padding: 2px 5px;
             border-radius: 4px;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-all;
         }
 
         pre {
@@ -277,6 +280,7 @@
                 <option value="TXT">TXT</option>
                 <option value="NS">NS</option>
                 <option value="CAA">CAA</option>
+                <option value="DKIM">DKIM</option>
                 <option value="ALL">ALL</option>
             </select>
 
@@ -307,7 +311,10 @@
         <p><strong>TXT</strong> = tekstipohjaisia asetuksia, kuten SPF, DKIM, DMARC ja varmennukset.</p>
         <p><strong>NS</strong> = domainin nimipalvelimet.</p>
         <p><strong>CAA</strong> = mitkä varmentajat saavat myöntää SSL/TLS-varmenteita domainille.</p>
-        <p><strong>ALL</strong> = hakee yleisimmät tietueet, DMARC-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
+        <p><strong>DKIM</strong> = varmistaa sähköpostin aitouden vastaanottajalle.</p>
+        <p><strong>SPF</strong> = kertoo kuka saa lähettää sähköpostia.</p>
+        <p><strong>DMARC</strong> = Määrittää SPF/DKIM-epäonnistumisten käsittelyn.</p>
+        <p><strong>ALL</strong> = hakee yleisimmät tietueet, DMARC-tietueen, DKIM-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
     </div>
 
     <div class="box">
@@ -317,7 +324,8 @@
 
     
     <div class="box">
-        <h2>DMARC-rakentaja</h2>
+        <h2><button id="toggleDmarcBuilder" type="button">Näytä DMARC-rakentaja ▼</button></h2>
+        <div id="dmarcBuilderContent" hidden>
         <p class="small">Valitse asetukset ja kopioi valmis DMARC-tietue DNS:ään.</p>
 
         <div class="form-row">
@@ -338,13 +346,36 @@
             <input id="dmarcRua" type="text" placeholder="Raportointiosoite (esim. mailto:dmarc@yritys.fi)">
         </div>
 
+        <div class="form-row">
+            <select id="dmarcAspf">
+                <option value="r">SPF Alignment: Relaxed (suositus)</option>
+                <option value="s">SPF Alignment: Strict</option>
+            </select>
+
+            <select id="dmarcAdkim">
+                <option value="r">DKIM Alignment: Relaxed (suositus)</option>
+                <option value="s">DKIM Alignment: Strict</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <input id="dmarcRuf" type="text" placeholder="Forensic-raportit (ruf), esim. mailto:dmarc@yritys.fi">
+        </div>
+
         <div class="record">
             <strong>Valmis tietue:</strong>
             <pre id="dmarcOutput">v=DMARC1; p=none; pct=100</pre>
             <button id="copyDmarcButton" type="button">Kopioi DMARC-tietue</button>
         </div>
-    </div>
 
+        <div class="record">
+            <h3>Mitä DMARC-lisäasetukset tarkoittavat?</h3>
+            <p><strong>SPF Alignment</strong> = määrittää, kuinka tarkasti SPF:n käyttämän domainin pitää vastata viestin näkyvää lähettäjädomainia. Relaxed sallii saman päädomainin alidomainit, Strict vaatii täsmällisen domain-osuman.</p>
+            <p><strong>DKIM Alignment</strong> = määrittää, kuinka tarkasti DKIM-allekirjoituksen domainin pitää vastata viestin näkyvää lähettäjädomainia. Relaxed sallii saman päädomainin alidomainit, Strict vaatii täsmällisen domain-osuman.</p>
+            <p><strong>Forensic-raportit</strong> = yksittäisiä epäonnistuneita viestejä koskevat raportit. Niitä ei aina lähetetä, ja ne voivat sisältää viestin tietoja, joten niitä kannattaa käyttää harkiten.</p>
+        </div>
+    </div>
+        </div>
 
     <p id="time" class="small"></p>
 
@@ -352,7 +383,7 @@
         const allRecordTypes = ["A", "AAAA", "MX", "TXT", "NS", "CAA"];
         const domainInput = document.getElementById("domainInput");
         const recordType = document.getElementById("recordType");
-        const lookupButton = document.getElementById("lookupButton");
+                const lookupButton = document.getElementById("lookupButton");
         const statusElement = document.getElementById("status");
         const explanationElement = document.getElementById("explanation");
         const resultsElement = document.getElementById("results");
@@ -373,6 +404,7 @@
             TXT: "TXT-tietue sisältää tekstimuotoisia asetuksia, kuten SPF-, DKIM- ja DMARC-tietoja.",
             NS: "NS-tietue kertoo, mitkä nimipalvelimet vastaavat domainin DNS-tiedoista.",
             CAA: "CAA-tietue kertoo, mitkä varmentajat saavat myöntää domainille SSL/TLS-varmenteita.",
+            DKIM: "DKIM hakee selector-nimeen perustuvan TXT-tietueen muodossa selector._domainkey.domain.",
             ALL: "ALL hakee yleisimmät DNS-tietuetyypit, tarkistaa DMARCin ja muodostaa DNS-analyysin."
         };
 
@@ -419,6 +451,7 @@
         async function lookupDns() {
             const domain = domainInput.value.trim().toLowerCase();
             const type = recordType.value;
+            const dkimSelectors = ["selector1", "selector2"];
 
             clearResults();
 
@@ -431,7 +464,7 @@
             explanationElement.textContent = typeExplanations[type] || "";
 
             try {
-                const types = type === "ALL" ? allRecordTypes : [type];
+                const types = type === "ALL" ? allRecordTypes : (type === "DKIM" ? [] : [type]);
                 const responses = {};
 
                 for (const requestedType of types) {
@@ -440,6 +473,13 @@
 
                 if (type === "ALL") {
                     responses.DMARC = await fetchDns(`_dmarc.${domain}`, "TXT");
+                    responses.DKIM1 = await fetchDns(`selector1._domainkey.${domain}`, "TXT");
+                    responses.DKIM2 = await fetchDns(`selector2._domainkey.${domain}`, "TXT");
+                }
+
+                if (type === "DKIM") {
+                    responses.DKIM1 = await fetchDns(`selector1._domainkey.${domain}`, "TXT");
+                    responses.DKIM2 = await fetchDns(`selector2._domainkey.${domain}`, "TXT");
                 }
 
                 const recordsByType = Object.fromEntries(types.map(requestedType => [
@@ -449,6 +489,17 @@
 
                 if (type === "ALL") {
                     recordsByType.DMARC = responses.DMARC.Answer || [];
+                    recordsByType.DKIM = [
+                        ...(responses.DKIM1.Answer || []),
+                        ...(responses.DKIM2.Answer || [])
+                    ];
+                }
+
+                if (type === "DKIM") {
+                    recordsByType.DKIM = [
+                        ...(responses.DKIM1.Answer || []),
+                        ...(responses.DKIM2.Answer || [])
+                    ];
                 }
 
                 const recordCount = Object.values(recordsByType).reduce((sum, records) => sum + records.length, 0);
@@ -489,6 +540,7 @@
             const mxService = detectMailService(normalizedRecords.MX || []);
             const spfRecords = (normalizedRecords.TXT || []).filter(value => value.toLowerCase().startsWith("v=spf1"));
             const dmarcRecords = (normalizedRecords.DMARC || []).filter(value => value.toLowerCase().startsWith("v=dmarc1"));
+            const dkimRecords = (normalizedRecords.DKIM || []).filter(value => value.toLowerCase().includes("v=dkim1"));
             const spfAnalysis = analyzeSpfRecords(spfRecords);
             const dmarcAnalysis = analyzeDmarcRecords(dmarcRecords);
             const publicFindings = buildPublicFindings(normalizedRecords, mxService, spfAnalysis, dmarcAnalysis);
@@ -504,6 +556,7 @@
                 spfRecords,
                 spfAnalysis,
                 dmarcRecords,
+                dkimRecords,
                 dmarcAnalysis,
                 publicFindings
             };
@@ -687,7 +740,7 @@
 
             checks.push(analysis.spfRecords.length ? "✔ SPF" : "✖ SPF");
             checks.push(analysis.dmarcRecords.length ? "✔ DMARC" : "✖ DMARC");
-            checks.push("? DKIM");
+            checks.push(analysis.dkimRecords.length ? "✔ DKIM" : "✖ DKIM");
 
             const details = [];
 
@@ -728,7 +781,7 @@
                     ? records.map(renderRecord).join("")
                     : `<div class="record">Ei ${escapeHtml(type)}-tietueita.</div>`;
 
-                const title = type === "DMARC" ? "DMARC (_dmarc TXT)" : `${type}-tietueet`;
+                const title = type === "DMARC" ? "DMARC (_dmarc TXT)" : type === "DKIM" ? "DKIM (_domainkey TXT)" : `${type}-tietueet`;
 
                 return showSections
                     ? `<section class="result-section"><h3>${escapeHtml(title)}</h3>${content}</section>`
@@ -826,10 +879,12 @@
 
         function updateCmdCommand() {
             const domain = domainInput.value.trim() || "<domain>";
-            const types = recordType.value === "ALL" ? [...allRecordTypes, "TXT _dmarc"] : [recordType.value];
+            const dkimSelectors = ["selector1", "selector2"];
+            const types = recordType.value === "ALL" ? [...allRecordTypes, "TXT _dmarc", "TXT DKIM"] : [recordType.value];
             cmdCommandElement.textContent = types.map((type, index) => {
                 const prompt = index === 0 ? "" : "\nC:\\Users\\DNS>";
                 if (type === "TXT _dmarc") return `${prompt}nslookup -type=TXT _dmarc.${domain}`;
+                if (type === "TXT DKIM" || type === "DKIM") return `${prompt}nslookup -type=TXT selector1._domainkey.${domain}\nC:\\Users\\DNS>nslookup -type=TXT selector2._domainkey.${domain}`;
                 return `${prompt}nslookup -type=${type} ${domain}`;
             }).join("");
         }
@@ -861,15 +916,32 @@
         });
 
 
+        const toggleDmarcBuilder = document.getElementById("toggleDmarcBuilder");
+        const dmarcBuilderContent = document.getElementById("dmarcBuilderContent");
+
+        toggleDmarcBuilder.addEventListener("click", () => {
+            dmarcBuilderContent.hidden = !dmarcBuilderContent.hidden;
+            toggleDmarcBuilder.textContent = dmarcBuilderContent.hidden
+                ? "Näytä DMARC-rakentaja ▼"
+                : "Piilota DMARC-rakentaja ▲";
+        });
+
         function updateDmarcBuilder() {
             const policy = document.getElementById("dmarcPolicy").value;
             const pct = document.getElementById("dmarcPct").value;
             const rua = document.getElementById("dmarcRua").value.trim();
+            const ruf = document.getElementById("dmarcRuf").value.trim();
+            const aspf = document.getElementById("dmarcAspf").value;
+            const adkim = document.getElementById("dmarcAdkim").value;
 
-            let record = `v=DMARC1; p=${policy}; pct=${pct}`;
+            let record = `v=DMARC1; p=${policy}; pct=${pct}; aspf=${aspf}; adkim=${adkim}`;
 
             if (rua) {
                 record += `; rua=${rua}`;
+            }
+
+            if (ruf) {
+                record += `; ruf=${ruf}`;
             }
 
             document.getElementById("dmarcOutput").textContent = record;
@@ -878,6 +950,9 @@
         document.getElementById("dmarcPolicy").addEventListener("change", updateDmarcBuilder);
         document.getElementById("dmarcPct").addEventListener("change", updateDmarcBuilder);
         document.getElementById("dmarcRua").addEventListener("input", updateDmarcBuilder);
+        document.getElementById("dmarcRuf").addEventListener("input", updateDmarcBuilder);
+        document.getElementById("dmarcAspf").addEventListener("change", updateDmarcBuilder);
+        document.getElementById("dmarcAdkim").addEventListener("change", updateDmarcBuilder);
 
         document.getElementById("copyDmarcButton").addEventListener("click", async () => {
             await navigator.clipboard.writeText(
