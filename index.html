@@ -1,88 +1,349 @@
 <!DOCTYPE html>
 <html lang="fi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DNS Lookup</title>
-    <style>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DNS Toolkit</title>
+<style>
+
+        :root {
+            color-scheme: dark;
+            --bg: #1b2838;
+            --surface: #16202d;
+            --surface-soft: #0f1a26;
+            --surface-tint: #2a475e;
+            --border: #2a475e;
+            --border-soft: #22384d;
+            --text: #c7d5e0;
+            --muted: #8f98a0;
+            --muted-2: #66c0f4;
+            --accent: #66c0f4;
+            --accent-hover: #8fd3ff;
+            --accent-soft: #17354a;
+            --accent-border: #3d6c8a;
+            --ok: #a4d007;
+            --error: #ff6b5a;
+            --warning: #d8a73d;
+            --neutral: #8f98a0;
+            --code-bg: #0b1520;
+            --tab-bg: #101d2a;
+            --shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+            --radius: 14px;
+            --radius-sm: 10px;
+            --control-height: 44px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: system-ui, sans-serif;
-            max-width: 900px;
-            margin: 50px auto;
-            padding: 20px;
-            line-height: 1.6;
-            text-align: center;
-            color: #222;
-            background: #fff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            max-width: 1760px;
+            margin: 0 auto;
+            padding: 28px;
+            line-height: 1.55;
+            text-align: left;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(42, 71, 94, 0.46), transparent 34rem),
+                radial-gradient(circle at bottom right, rgba(102, 192, 244, 0.11), transparent 36rem),
+                var(--bg);
             transition: background-color 0.2s, color 0.2s;
         }
 
-        h1 { margin-bottom: 10px; }
-        h2, h3 { margin-top: 0; }
+        h1 {
+            margin: 0;
+            font-size: clamp(1.9rem, 2vw, 2.45rem);
+            letter-spacing: -0.04em;
+            line-height: 1.08;
+        }
 
-        .theme-toggle {
-            position: fixed;
-            top: 18px;
-            right: 18px;
-            z-index: 10;
+        h2 {
+            margin: 0 0 14px;
+            font-size: 1.08rem;
+            letter-spacing: -0.015em;
+        }
+
+        h3 {
+            margin: 0 0 10px;
+            font-size: 0.98rem;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 22px;
+        }
+
+        .header-text {
+            max-width: 900px;
         }
 
         .lead {
-            color: #555;
-            margin-bottom: 30px;
+            color: var(--muted);
+            margin: 8px 0 0;
+            max-width: 760px;
         }
 
-        .box {
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 30px;
+        .theme-toggle {
+            position: static;
+            flex: 0 0 auto;
+        }
+
+        .tab-radio {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 18px;
+            padding: 6px;
+            width: fit-content;
+            max-width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--tab-bg);
+            overflow-x: auto;
+        }
+
+        .tab-nav label {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-weight: 650;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+
+        .tab-nav label:hover {
+            color: var(--text);
+            background: var(--surface-soft);
+        }
+
+        #tabLookup:checked ~ .tab-nav label[for="tabLookup"],
+        #tabDmarc:checked ~ .tab-nav label[for="tabDmarc"],
+        #tabDocs:checked ~ .tab-nav label[for="tabDocs"] {
+            color: var(--text);
+            background: var(--surface);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        #tabLookup:checked ~ .tab-panels #lookupPanel,
+        #tabDmarc:checked ~ .tab-panels #dmarcPanel,
+        #tabDocs:checked ~ .tab-panels #docsPanel {
+            display: block;
+        }
+
+        .lookup-layout {
+            display: grid;
+            grid-template-columns: minmax(340px, 30%) minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .lookup-side {
+            display: grid;
+            gap: 16px;
+            position: sticky;
+            top: 18px;
+        }
+
+        .results-main {
+            min-width: 0;
+        }
+
+        .box,
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-top: 0;
             text-align: left;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .panel-title h2 {
+            margin: 0;
+        }
+
+        .panel-kicker {
+            color: var(--muted);
+            font-size: 0.9rem;
         }
 
         .form-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 120px auto;
             gap: 10px;
-            margin-top: 20px;
-            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .builder-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .builder-grid .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 0;
+        }
+
+        .builder-grid .form-row.single {
+            grid-template-columns: 1fr;
         }
 
         input,
         select,
         button {
             font: inherit;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            min-height: var(--control-height);
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+        }
+
+        input,
+        select {
+            width: 100%;
+            color: var(--text);
+            background: var(--surface);
+        }
+
+        input:focus,
+        select:focus,
+        button:focus {
+            outline: 2px solid rgba(102, 192, 244, 0.32);
+            outline-offset: 2px;
         }
 
         input {
-            flex: 1;
-            min-width: 240px;
+            min-width: 0;
         }
 
         button {
             cursor: pointer;
-            background: #f5f5f5;
+            color: var(--text);
+            background: var(--surface-soft);
+            border-color: var(--border);
+            transition: background-color 0.15s, border-color 0.15s, transform 0.05s;
         }
 
-        button:hover { background: #eaeaea; }
+        button:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent-border);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #lookupButton {
+            color: #0b1118;
+            background: var(--accent);
+            border-color: var(--accent);
+            font-weight: 700;
+        }
+
+        #lookupButton:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
 
         .status {
-            margin-top: 20px;
-            font-weight: 600;
+            margin-top: 16px;
+            font-weight: 650;
+            color: var(--accent);
         }
 
-        .results { margin-top: 20px; }
-        .result-section { margin-top: 24px; }
-        .result-section h3 { margin-bottom: 10px; }
+        .results {
+            margin-top: 0;
+        }
+
+        .results:empty::before {
+            content: "Hakutulokset näkyvät tässä haun jälkeen.";
+            display: block;
+            color: var(--muted);
+            padding: 24px;
+            min-height: 220px;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-soft);
+        }
+
+        .result-section {
+            margin-top: 22px;
+        }
+
+        .result-section:first-child {
+            margin-top: 0;
+        }
+
+        .result-section h3 {
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 4px 10px;
+            border: 1px solid var(--border-soft);
+            border-radius: 999px;
+            color: var(--muted);
+            background: var(--surface-soft);
+            font-size: 0.84rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
 
         .record {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px;
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius-sm);
+            padding: 14px;
             margin-bottom: 10px;
-            background: #fafafa;
+            background: var(--surface);
+        }
+
+        .record-grid {
+            display: grid;
+            grid-template-columns: minmax(180px, 1.2fr) 110px 110px minmax(260px, 2.8fr);
+            gap: 12px;
+            align-items: start;
+        }
+
+        .record-field {
+            min-width: 0;
+        }
+
+        .record-label {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 650;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .record strong {
@@ -90,296 +351,456 @@
             min-width: 80px;
         }
 
-        code {
-            background: #f1f1f1;
+        code,
+        .record-value {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            background: var(--code-bg);
             padding: 2px 5px;
-            border-radius: 4px;
-            white-space: normal;
+            border-radius: 6px;
+            white-space: pre-wrap;
             overflow-wrap: anywhere;
-            word-break: break-all;
+            word-break: break-word;
         }
 
         pre {
             overflow-x: auto;
-            background: #f6f6f6;
+            background: var(--code-bg);
             padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-soft);
             text-align: left;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
         }
 
         .small {
-            color: #666;
+            color: var(--muted);
             font-size: 0.95rem;
         }
 
-        .cmd-window {
-            margin-top: 22px;
-            border: 1px solid #8b8b8b;
-            border-radius: 8px;
-            background: #0c0c0c;
-            color: #f2f2f2;
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-            font-family: Consolas, "Courier New", monospace;
-        }
-
-        .cmd-body {
-            padding: 14px 16px;
-            text-align: left;
-            white-space: pre-wrap;
-        }
-
-        .cmd-command { color: #fff; }
-
         .analysis-box {
-            border: 1px solid #d5d5d5;
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 18px;
-            background: #f7f7f7;
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-top: 16px;
+            background: var(--surface-soft);
         }
 
-        .analysis-box h3 { margin: 0 0 10px; }
+        .analysis-box h3 {
+            margin: 0 0 12px;
+        }
 
-        .analysis-grid {
+        .status-stack {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-            gap: 14px;
-            margin-top: 12px;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
         }
 
-        .analysis-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px;
-            background: #fff;
+        .status-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 9px 10px;
+            border: 1px solid var(--border-soft);
+            border-left-width: 4px;
+            border-radius: var(--radius-sm);
+            background: var(--surface);
         }
 
-        .analysis-card h4 {
-            margin: 0 0 8px;
+        .status-icon {
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .status-text {
+            min-width: 0;
+        }
+
+        .status-ok {
+            border-left-color: var(--ok);
+        }
+
+        .status-ok .status-icon {
+            color: var(--ok);
+        }
+
+        .status-error {
+            border-left-color: var(--error);
+        }
+
+        .status-error .status-icon {
+            color: var(--error);
+        }
+
+        .status-warning {
+            border-left-color: var(--warning);
+        }
+
+        .status-warning .status-icon {
+            color: var(--warning);
+        }
+
+        .status-neutral {
+            border-left-color: var(--neutral);
+        }
+
+        .status-neutral .status-icon {
+            color: var(--neutral);
+        }
+
+        .analysis-details {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-soft);
         }
 
         .analysis-list {
             margin: 0;
-            padding-left: 22px;
+            padding-left: 20px;
         }
 
-        .analysis-list li { margin: 5px 0; }
-
-        .badge-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .badge {
-            display: inline-block;
-            border: 1px solid #d0d0d0;
-            border-radius: 999px;
-            padding: 4px 10px;
-            background: #fff;
-            font-size: 0.92rem;
+        .analysis-list li {
+            margin: 5px 0;
         }
 
         .actions {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-top: 20px;
+            margin-top: 16px;
             flex-wrap: wrap;
         }
 
         .copy-message {
-            color: #35643c;
-            font-weight: 600;
+            color: var(--ok);
+            font-weight: 650;
         }
 
-        body.dark {
-            color: #e5e5e5;
-            background: #242424;
-        }
-
-        body.dark .lead,
-        body.dark .small { color: #bcbcbc; }
-
-        body.dark .box {
-            border-color: #505050;
-            background: #2d2d2d;
-        }
-
-        body.dark input,
-        body.dark select,
-        body.dark button {
-            color: #e5e5e5;
-            border-color: #666;
-            background: #383838;
-        }
-
-        body.dark button:hover { background: #444; }
-
-        body.dark .record,
-        body.dark .analysis-box,
-        body.dark .analysis-card {
-            color: #e5e5e5;
-            border-color: #505050;
-            background: #333;
-        }
-
-        body.dark .badge {
-            color: #e5e5e5;
-            border-color: #555;
-            background: #3a3a3a;
-        }
-
-        body.dark code {
-            color: #ededed;
-            background: #414141;
-        }
-
-        body.dark pre {
-            color: #ededed;
-            border-color: #505050;
-            background: #202020;
-        }
-
-        body.dark .cmd-window {
-            border-color: #555;
-            background: #101010;
+        .utility-panel {
+            margin-top: 16px;
+            background: var(--surface-soft);
             box-shadow: none;
         }
 
-        body.dark .copy-message { color: #b8d7bc; }
-
-        @media (max-width: 640px) {
-            body { margin-top: 70px; }
-            .theme-toggle { top: 12px; right: 12px; }
+        .documentation-grid {
+            display: grid;
+            grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+            gap: 18px;
+            align-items: start;
         }
-    </style>
+
+        .doc-list p {
+            margin: 9px 0;
+        }
+
+        .secondary-note {
+            margin: 0 0 12px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        #toggleDmarcBuilder[hidden] {
+            display: none;
+        }
+
+        #time {
+            margin-top: 22px;
+            text-align: right;
+        }
+
+        body.dark {
+            --bg: #0b1118;
+            --surface: #111a24;
+            --surface-soft: #0d151e;
+            --surface-tint: #172638;
+            --border: #24384a;
+            --border-soft: #1d2c3c;
+            --text: #c7d5e0;
+            --muted: #8999a6;
+            --muted-2: #66c0f4;
+            --accent: #66c0f4;
+            --accent-hover: #8fd3ff;
+            --accent-soft: #17354a;
+            --accent-border: #2d5b77;
+            --ok: #a4d007;
+            --error: #ff6b5a;
+            --warning: #d8a73d;
+            --neutral: #8f98a0;
+            --code-bg: #080d13;
+            --tab-bg: #0d1721;
+            --shadow: none;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(42, 71, 94, 0.40), transparent 34rem),
+                radial-gradient(circle at bottom right, rgba(102, 192, 244, 0.10), transparent 36rem),
+                var(--bg);
+        }
+
+        body.dark input,
+        body.dark select {
+            color: var(--text);
+            border-color: var(--border);
+            background: #0e1723;
+        }
+
+        body.dark button {
+            color: var(--text);
+            border-color: var(--border);
+            background: var(--surface-soft);
+        }
+
+        body.dark button:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent-border);
+        }
+
+        body.dark #lookupButton {
+            color: #0b1118;
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        body.dark #lookupButton:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        body.dark code,
+        body.dark .record-value,
+        body.dark pre {
+            color: #f0f4ef;
+            background: var(--code-bg);
+            border-color: var(--border-soft);
+        }
+
+        @media (max-width: 1200px) {
+            .record-grid {
+                grid-template-columns: 1fr 90px 90px;
+            }
+
+            .record-field.value {
+                grid-column: 1 / -1;
+            }
+
+            .documentation-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            body {
+                padding: 18px;
+            }
+
+            .app-header {
+                flex-direction: column;
+            }
+
+            .lookup-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .lookup-side {
+                position: static;
+            }
+
+            .form-row,
+            .builder-grid .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .theme-toggle {
+                align-self: flex-start;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .record-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-nav {
+                width: 100%;
+            }
+
+            .tab-nav label {
+                flex: 1 0 auto;
+                justify-content: center;
+            }
+        }
+
+</style>
 </head>
+
 <body>
-    <button id="themeToggle" class="theme-toggle" type="button">🌙 Tumma tila</button>
-
-    <h1>DNS Lookup</h1>
-
-    <p class="lead">
-        Hae julkisia DNS-tietueita ja katso, mitä domain kertoo internetille.
-    </p>
-
-    <div class="box">
-        <h2>Hae DNS-tietue</h2>
-
-        <div class="form-row">
-            <input id="domainInput" type="text" placeholder="Kirjoita domain">
-            
-            <select id="recordType">
-                <option value="A">A</option>
-                <option value="AAAA">AAAA</option>
-                <option value="CNAME">CNAME</option>
-                <option value="MX">MX</option>
-                <option value="TXT">TXT</option>
-                <option value="NS">NS</option>
-                <option value="CAA">CAA</option>
-                <option value="DKIM">DKIM</option>
-                <option value="ALL">ALL</option>
-            </select>
-
-            <button id="lookupButton">Hae</button>
+    <header class="app-header">
+        <div class="header-text">
+            <h1>DNS Toolkit</h1>
+            <p class="lead">Hae julkisia DNS-tietueita ja tarkista SPF-, DKIM- ja DMARC-perusasiat nopeasti.</p>
         </div>
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Tumma tila</button>
+    </header>
 
-        <div class="cmd-window" aria-label="Windows Command Prompt -komentoesimerkki">
-            <div class="cmd-body">C:\Users\DNS&gt;<span id="cmdCommand" class="cmd-command"></span></div>
-        </div>
+    <input class="tab-radio" type="radio" name="toolTab" id="tabLookup" checked>
+    <input class="tab-radio" type="radio" name="toolTab" id="tabDmarc">
+    <input class="tab-radio" type="radio" name="toolTab" id="tabDocs">
 
-        <div id="status" class="status"></div>
-        <div id="explanation" class="small"></div>
-        <div id="analysisResults"></div>
-        <div id="results" class="results"></div>
-        <div id="copyActions" class="actions" hidden>
-            <button id="copyButton" type="button">Kopioi tulokset</button>
-            <span id="copyMessage" class="copy-message" role="status"></span>
-        </div>
+    <nav class="tab-nav" aria-label="Työkalun välilehdet">
+        <label for="tabLookup">Lookup</label>
+        <label for="tabDmarc">DMARC Builder</label>
+        <label for="tabDocs">Documentation</label>
+    </nav>
+
+    <div class="tab-panels">
+        <section class="tab-panel" id="lookupPanel">
+            <div class="lookup-layout">
+                <aside class="lookup-side">
+                    <div class="box">
+                        <div class="panel-title">
+                            <h2>DNS-haku</h2>
+                            <span class="panel-kicker">Domain → tietue → analyysi</span>
+                        </div>
+
+                        <div class="form-row">
+                            <input id="domainInput" placeholder="Kirjoita domain" type="text">
+                            <select id="recordType">
+                                <option value="A">A</option>
+                                <option value="AAAA">AAAA</option>
+                                <option value="CNAME">CNAME</option>
+                                <option value="MX">MX</option>
+                                <option value="TXT">TXT</option>
+                                <option value="NS">NS</option>
+                                <option value="CAA">CAA</option>
+                                <option value="DKIM">DKIM</option>
+                                <option value="ALL">ALL</option>
+                            </select>
+                            <button id="lookupButton">Hae</button>
+                        </div>
+
+                        <div class="status" id="status"></div>
+                        <div class="small" id="explanation"></div>
+                        <div id="analysisResults"></div>
+                    </div>
+
+                    <div class="box utility-panel">
+                        <h2><button id="toggleRawDns" type="button">Näytä raaka DNS-vastaus ▼</button></h2>
+                        <p class="secondary-note">Tarkempi JSON-vastaus vianmääritystä varten.</p>
+                        <pre hidden id="rawJson">Ei hakua vielä.</pre>
+                    </div>
+                </aside>
+
+                <section class="panel results-main">
+                    <div class="panel-title">
+                        <h2>Hakutulokset</h2>
+                        <span class="panel-kicker">Raaka arvo säilytetään kokonaisena</span>
+                    </div>
+                    <div class="results" id="results"></div>
+                    <div class="actions" hidden id="copyActions">
+                        <button id="copyButton" type="button">Kopioi tulokset</button>
+                        <span class="copy-message" id="copyMessage" role="status"></span>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="dmarcPanel">
+            <section class="panel">
+                <div class="panel-title">
+                    <h2>DMARC Builder</h2>
+                    <span class="panel-kicker">Muodosta valmis TXT-tietue</span>
+                </div>
+
+                <button id="toggleDmarcBuilder" type="button" hidden>DMARC-rakentaja</button>
+
+                <div id="dmarcBuilderContent" class="builder-grid">
+                    <p class="small">Valitse asetukset ja kopioi valmis DMARC-tietue DNS:ään.</p>
+
+                    <div class="form-row">
+                        <select id="dmarcPolicy">
+                            <option value="none">Vain seuranta (p=none)</option>
+                            <option value="quarantine">Epäilyttävät viestit roskapostiin (p=quarantine)</option>
+                            <option value="reject">Hylkää epäilyttävät viestit (p=reject)</option>
+                        </select>
+
+                        <select id="dmarcPct">
+                            <option value="100">Käytä 100% viesteistä</option>
+                            <option value="50">Käytä 50% viesteistä</option>
+                            <option value="25">Käytä 25% viesteistä</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row single">
+                        <input id="dmarcRua" placeholder="Raportointiosoite (esim. mailto:dmarc@yritys.fi)" type="text">
+                    </div>
+
+                    <div class="form-row">
+                        <select id="dmarcAspf">
+                            <option value="r">SPF Alignment: Relaxed (suositus)</option>
+                            <option value="s">SPF Alignment: Strict</option>
+                        </select>
+
+                        <select id="dmarcAdkim">
+                            <option value="r">DKIM Alignment: Relaxed (suositus)</option>
+                            <option value="s">DKIM Alignment: Strict</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row single">
+                        <input id="dmarcRuf" placeholder="Forensic-raportit (ruf), esim. mailto:dmarc@yritys.fi" type="text">
+                    </div>
+
+                    <div class="record">
+                        <strong>Valmis tietue:</strong>
+                        <pre id="dmarcOutput">v=DMARC1; p=none; pct=100</pre>
+                        <button id="copyDmarcButton" type="button">Kopioi DMARC-tietue</button>
+                    </div>
+
+                    <div class="record">
+                        <h3>Mitä DMARC-lisäasetukset tarkoittavat?</h3>
+                        <p><strong>SPF Alignment</strong> = määrittää, kuinka tarkasti SPF:n käyttämän domainin pitää vastata viestin näkyvää lähettäjädomainia. Relaxed sallii saman päädomainin alidomainit, Strict vaatii täsmällisen domain-osuman.</p>
+                        <p><strong>DKIM Alignment</strong> = määrittää, kuinka tarkasti DKIM-allekirjoituksen domainin pitää vastata viestin näkyvää lähettäjädomainia. Relaxed sallii saman päädomainin alidomainit, Strict vaatii täsmällisen domain-osuman.</p>
+                        <p><strong>Forensic-raportit</strong> = yksittäisiä epäonnistuneita viestejä koskevat raportit. Niitä ei aina lähetetä, ja ne voivat sisältää viestin tietoja, joten niitä kannattaa käyttää harkiten.</p>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <section class="tab-panel" id="docsPanel">
+            <section class="panel">
+                <div class="panel-title">
+                    <h2>Documentation</h2>
+                    <span class="panel-kicker">Tietuetyyppien pikaohje</span>
+                </div>
+
+                <div class="documentation-grid doc-list">
+                    <div class="record">
+                        <h3>DNS-tietueet</h3>
+                        <p><strong>A</strong> = domain osoittaa IPv4-osoitteeseen.</p>
+                        <p><strong>AAAA</strong> = domain osoittaa IPv6-osoitteeseen.</p>
+                        <p><strong>CNAME</strong> = nimi on alias toiselle nimelle.</p>
+                        <p><strong>MX</strong> = domainin sähköpostipalvelimet.</p>
+                        <p><strong>TXT</strong> = tekstipohjaisia asetuksia, kuten SPF, DKIM, DMARC ja varmennukset.</p>
+                        <p><strong>NS</strong> = domainin nimipalvelimet.</p>
+                        <p><strong>CAA</strong> = mitkä varmentajat saavat myöntää SSL/TLS-varmenteita domainille.</p>
+                    </div>
+
+                    <div class="record">
+                        <h3>Sähköpostin suojaustietueet</h3>
+                        <p><strong>DKIM</strong> = varmistaa sähköpostin aitouden vastaanottajalle.</p>
+                        <p><strong>SPF</strong> = kertoo kuka saa lähettää sähköpostia.</p>
+                        <p><strong>DMARC</strong> = määrittää SPF/DKIM-epäonnistumisten käsittelyn.</p>
+                        <p><strong>ALL</strong> = hakee yleisimmät tietueet, DMARC-tietueen, DKIM-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
+                    </div>
+                </div>
+            </section>
+        </section>
     </div>
 
-    <div class="box">
-        <h2>Mitä tietuetyypit tarkoittavat?</h2>
+    <p class="small" id="time"></p>
 
-        <p><strong>A</strong> = domain osoittaa IPv4-osoitteeseen.</p>
-        <p><strong>AAAA</strong> = domain osoittaa IPv6-osoitteeseen.</p>
-        <p><strong>CNAME</strong> = nimi on alias toiselle nimelle.</p>
-        <p><strong>MX</strong> = domainin sähköpostipalvelimet.</p>
-        <p><strong>TXT</strong> = tekstipohjaisia asetuksia, kuten SPF, DKIM, DMARC ja varmennukset.</p>
-        <p><strong>NS</strong> = domainin nimipalvelimet.</p>
-        <p><strong>CAA</strong> = mitkä varmentajat saavat myöntää SSL/TLS-varmenteita domainille.</p>
-        <p><strong>DKIM</strong> = varmistaa sähköpostin aitouden vastaanottajalle.</p>
-        <p><strong>SPF</strong> = kertoo kuka saa lähettää sähköpostia.</p>
-        <p><strong>DMARC</strong> = Määrittää SPF/DKIM-epäonnistumisten käsittelyn.</p>
-        <p><strong>ALL</strong> = hakee yleisimmät tietueet, DMARC-tietueen, DKIM-tietueen ja kokoaa tulkinnan samaan näkymään.</p>
-    </div>
-
-    <div class="box">
-        <h2><button id="toggleRawDns" type="button">Näytä raaka DNS-vastaus ▼</button></h2>
-        <pre id="rawJson" hidden>Ei hakua vielä.</pre>
-    </div>
-
-    
-    <div class="box">
-        <h2><button id="toggleDmarcBuilder" type="button">Näytä DMARC-rakentaja ▼</button></h2>
-        <div id="dmarcBuilderContent" hidden>
-        <p class="small">Valitse asetukset ja kopioi valmis DMARC-tietue DNS:ään.</p>
-
-        <div class="form-row">
-            <select id="dmarcPolicy">
-                <option value="none">Vain seuranta (p=none)</option>
-                <option value="quarantine">Epäilyttävät viestit roskapostiin (p=quarantine)</option>
-                <option value="reject">Hylkää epäilyttävät viestit (p=reject)</option>
-            </select>
-
-            <select id="dmarcPct">
-                <option value="100">Käytä 100% viesteistä</option>
-                <option value="50">Käytä 50% viesteistä</option>
-                <option value="25">Käytä 25% viesteistä</option>
-            </select>
-        </div>
-
-        <div class="form-row">
-            <input id="dmarcRua" type="text" placeholder="Raportointiosoite (esim. mailto:dmarc@yritys.fi)">
-        </div>
-
-        <div class="form-row">
-            <select id="dmarcAspf">
-                <option value="r">SPF Alignment: Relaxed (suositus)</option>
-                <option value="s">SPF Alignment: Strict</option>
-            </select>
-
-            <select id="dmarcAdkim">
-                <option value="r">DKIM Alignment: Relaxed (suositus)</option>
-                <option value="s">DKIM Alignment: Strict</option>
-            </select>
-        </div>
-
-        <div class="form-row">
-            <input id="dmarcRuf" type="text" placeholder="Forensic-raportit (ruf), esim. mailto:dmarc@yritys.fi">
-        </div>
-
-        <div class="record">
-            <strong>Valmis tietue:</strong>
-            <pre id="dmarcOutput">v=DMARC1; p=none; pct=100</pre>
-            <button id="copyDmarcButton" type="button">Kopioi DMARC-tietue</button>
-        </div>
-
-        <div class="record">
-            <h3>Mitä DMARC-lisäasetukset tarkoittavat?</h3>
-            <p><strong>SPF Alignment</strong> = määrittää, kuinka tarkasti SPF:n käyttämän domainin pitää vastata viestin näkyvää lähettäjädomainia. Relaxed sallii saman päädomainin alidomainit, Strict vaatii täsmällisen domain-osuman.</p>
-            <p><strong>DKIM Alignment</strong> = määrittää, kuinka tarkasti DKIM-allekirjoituksen domainin pitää vastata viestin näkyvää lähettäjädomainia. Relaxed sallii saman päädomainin alidomainit, Strict vaatii täsmällisen domain-osuman.</p>
-            <p><strong>Forensic-raportit</strong> = yksittäisiä epäonnistuneita viestejä koskevat raportit. Niitä ei aina lähetetä, ja ne voivat sisältää viestin tietoja, joten niitä kannattaa käyttää harkiten.</p>
-        </div>
-    </div>
-        </div>
-
-    <p id="time" class="small"></p>
-
-    <script>
+<script>
         const allRecordTypes = ["A", "AAAA", "MX", "TXT", "NS", "CAA"];
         const domainInput = document.getElementById("domainInput");
         const recordType = document.getElementById("recordType");
@@ -388,7 +809,6 @@
         const explanationElement = document.getElementById("explanation");
         const resultsElement = document.getElementById("results");
         const rawJsonElement = document.getElementById("rawJson");
-        const cmdCommandElement = document.getElementById("cmdCommand");
         const analysisResultsElement = document.getElementById("analysisResults");
         const copyActionsElement = document.getElementById("copyActions");
         const copyButton = document.getElementById("copyButton");
@@ -439,8 +859,6 @@
         };
 
         lookupButton.addEventListener("click", lookupDns);
-        domainInput.addEventListener("input", updateCmdCommand);
-        recordType.addEventListener("change", updateCmdCommand);
         copyButton.addEventListener("click", copyResults);
         themeToggle.addEventListener("click", toggleTheme);
 
@@ -505,7 +923,7 @@
                 const recordCount = Object.values(recordsByType).reduce((sum, records) => sum + records.length, 0);
                 const analysis = buildDnsAnalysis(domain, recordsByType, type === "ALL");
 
-                rawJsonElement.textContent = JSON.stringify(type === "ALL" ? responses : responses[type], null, 2);
+                rawJsonElement.textContent = JSON.stringify(type === "ALL" || type === "DKIM" ? responses : responses[type], null, 2);
 
                 if (recordCount === 0) {
                     statusElement.textContent = "Tietueita ei löytynyt.";
@@ -730,17 +1148,33 @@
         }
 
         function renderDnsAnalysis(analysis) {
-            const checks = [];
+            const statusItems = [];
 
-            checks.push(
-                analysis.mailService.found
-                    ? `✔ ${analysis.mailService.name}`
-                    : "✖ Sähköpostipalvelua ei tunnistettu"
-            );
+            statusItems.push({
+                state: analysis.mailService.found ? "ok" : "error",
+                icon: analysis.mailService.found ? "✔" : "✖",
+                text: analysis.mailService.found
+                    ? `MX tunnistettu: ${analysis.mailService.name}`
+                    : "Sähköpostipalvelua ei tunnistettu"
+            });
 
-            checks.push(analysis.spfRecords.length ? "✔ SPF" : "✖ SPF");
-            checks.push(analysis.dmarcRecords.length ? "✔ DMARC" : "✖ DMARC");
-            checks.push(analysis.dkimRecords.length ? "✔ DKIM" : "✖ DKIM");
+            statusItems.push({
+                state: analysis.spfRecords.length ? "ok" : "error",
+                icon: analysis.spfRecords.length ? "✔" : "✖",
+                text: analysis.spfRecords.length ? "SPF-tietue löytyi" : "SPF-tietuetta ei löytynyt"
+            });
+
+            statusItems.push({
+                state: analysis.dmarcRecords.length ? "ok" : "error",
+                icon: analysis.dmarcRecords.length ? "✔" : "✖",
+                text: analysis.dmarcRecords.length ? "DMARC-tietue löytyi" : "DMARC-tietuetta ei löytynyt"
+            });
+
+            statusItems.push({
+                state: analysis.dkimRecords.length ? "ok" : "error",
+                icon: analysis.dkimRecords.length ? "✔" : "✖",
+                text: analysis.dkimRecords.length ? "DKIM-tietue löytyi" : "DKIM-tietuetta ei löytynyt"
+            });
 
             const details = [];
 
@@ -761,14 +1195,20 @@
             return `
                 <section class="analysis-box">
                     <h3>DNS-analyysi</h3>
-                    <ul class="analysis-list">
-                        ${checks.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
+                    <ul class="status-stack">
+                        ${statusItems.map(item => `
+                            <li class="status-card status-${item.state}">
+                                <span class="status-icon">${escapeHtml(item.icon)}</span>
+                                <span class="status-text">${escapeHtml(item.text)}</span>
+                            </li>
+                        `).join("")}
                     </ul>
                     ${details.length ? `
-                    <hr style="margin:16px 0;">
-                    <ul class="analysis-list">
-                        ${details.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
-                    </ul>` : ""}
+                    <div class="analysis-details">
+                        <ul class="analysis-list">
+                            ${details.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
+                        </ul>
+                    </div>` : ""}
                 </section>
             `;
         }
@@ -792,10 +1232,24 @@
         function renderRecord(answer) {
             return `
                 <div class="record">
-                    <p><strong>Nimi:</strong> <code>${escapeHtml(answer.name)}</code></p>
-                    <p><strong>Tyyppi:</strong> ${dnsTypeToText(answer.type)}</p>
-                    <p><strong>TTL:</strong> ${escapeHtml(String(answer.TTL))} sekuntia</p>
-                    <p><strong>Arvo:</strong> <code>${escapeHtml(answer.data)}</code></p>
+                    <div class="record-grid">
+                        <div class="record-field">
+                            <span class="record-label">Nimi</span>
+                            <code>${escapeHtml(answer.name)}</code>
+                        </div>
+                        <div class="record-field">
+                            <span class="record-label">Tyyppi</span>
+                            <span>${dnsTypeToText(answer.type)}</span>
+                        </div>
+                        <div class="record-field">
+                            <span class="record-label">TTL</span>
+                            <span>${escapeHtml(String(answer.TTL))} s</span>
+                        </div>
+                        <div class="record-field value">
+                            <span class="record-label">Arvo</span>
+                            <code class="record-value">${escapeHtml(answer.data)}</code>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -877,18 +1331,6 @@
                 .replaceAll("'", "&#039;");
         }
 
-        function updateCmdCommand() {
-            const domain = domainInput.value.trim() || "<domain>";
-            const dkimSelectors = ["selector1", "selector2"];
-            const types = recordType.value === "ALL" ? [...allRecordTypes, "TXT _dmarc", "TXT DKIM"] : [recordType.value];
-            cmdCommandElement.textContent = types.map((type, index) => {
-                const prompt = index === 0 ? "" : "\nC:\\Users\\DNS>";
-                if (type === "TXT _dmarc") return `${prompt}nslookup -type=TXT _dmarc.${domain}`;
-                if (type === "TXT DKIM" || type === "DKIM") return `${prompt}nslookup -type=TXT selector1._domainkey.${domain}\nC:\\Users\\DNS>nslookup -type=TXT selector2._domainkey.${domain}`;
-                return `${prompt}nslookup -type=${type} ${domain}`;
-            }).join("");
-        }
-
         function toggleTheme() {
             applyTheme(document.body.classList.contains("dark") ? "light" : "dark");
         }
@@ -901,7 +1343,6 @@
         }
 
         applyTheme(localStorage.getItem("dns-theme") || "light");
-        updateCmdCommand();
 
         
         const toggleRawDnsButton = document.getElementById("toggleRawDns");
